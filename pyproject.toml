@@ -1,0 +1,25 @@
+[project]
+name = "stock-ai"
+version = "0.1.0"
+description = "Generate an HTML email report for holdings with large daily moves."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "finnhub-python>=2.4.20",
+    "openai>=1.0.0",
+    "pandas>=2.0.0",
+    "pyarrow<21",
+    "python-dotenv>=1.0.0",
+    "streamlit>=1.35.0",
+    "yfinance>=0.2.40",
+]
+
+[project.scripts]
+stock-ai-report = "stock_ai.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
