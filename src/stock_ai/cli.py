@@ -46,6 +46,7 @@ def main() -> None:
         settings = Settings.from_env()
         _validate_api_keys(settings)
         from stock_ai.news import FinnhubNewsClient
+        from stock_ai.news import company_news_for_moves
         from stock_ai.summarizer import OpenAINewsSummarizer
 
         news_client = FinnhubNewsClient(settings.finnhub_api_key or "")
@@ -53,6 +54,8 @@ def main() -> None:
 
         if macro_path:
             news = news_client.market_news(limit=args.max_news)
+            if not news:
+                news = company_news_for_moves(news_client, moves, days=args.news_days, limit=args.max_news)
             summary = summarizer.summarize_market(moves, news)
             report_items = []
             macro_report = MacroReport(moves=moves, news=news, summary=summary)
@@ -60,7 +63,7 @@ def main() -> None:
             macro_report = None
             report_items = []
             for move in moves:
-                news = news_client.company_news(move.ticker, days=args.news_days, limit=args.max_news)
+                news = news_client.relevant_company_news(move.ticker, days=args.news_days, limit=args.max_news)
                 summary = summarizer.summarize(move, news)
                 report_items.append(ReportItem(move=move, news=news, summary=summary))
 

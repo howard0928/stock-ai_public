@@ -40,12 +40,107 @@ def render_html_report(items: list[ReportItem], threshold_percent: float, macro_
 <head>
   <meta charset="utf-8">
   <title>Stock Movement Report</title>
+  <style>
+    :root {{
+      --bg: #000000;
+      --panel: #080A08;
+      --control: #10140F;
+      --border: #1B221D;
+      --border-strong: #334036;
+      --text: #F1F6F1;
+      --muted: #B8C2B6;
+      --positive: #00E676;
+      --negative: #FF3B30;
+      --warning: #FFB800;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+    }}
+    main {{
+      max-width: 1080px;
+      margin: 0 auto;
+      background: var(--panel);
+      border: 1px solid var(--border-strong);
+    }}
+    header {{
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border);
+      background: #050705;
+    }}
+    h1, h2 {{
+      margin: 0;
+      letter-spacing: 0;
+      color: var(--text);
+    }}
+    h1 {{ font-size: 23px; margin-bottom: 8px; }}
+    h2 {{ font-size: 16px; margin-bottom: 12px; }}
+    p {{ margin: 0; color: var(--muted); line-height: 1.5; }}
+    a {{ color: var(--positive); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    .section {{
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }}
+    .section:last-child {{ border-bottom: 0; }}
+    .badge {{
+      display: inline-block;
+      margin: 0 0 12px;
+      padding: 5px 8px;
+      border: 1px solid var(--border-strong);
+      color: var(--warning);
+      background: var(--control);
+      font-size: 12px;
+      font-weight: 700;
+    }}
+    .summary {{
+      line-height: 1.65;
+      color: var(--text);
+      border: 1px solid var(--border);
+      background: #050705;
+      padding: 12px 14px;
+    }}
+    .report-table {{
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }}
+    .report-table th {{
+      padding: 10px;
+      text-align: left;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--control);
+      font-size: 12px;
+    }}
+    .report-table td {{
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: top;
+    }}
+    .ticker {{ font-weight: 700; color: var(--text); }}
+    .positive {{ color: var(--positive) !important; font-weight: 700; }}
+    .negative {{ color: var(--negative) !important; font-weight: 700; }}
+    .news-list {{ margin: 0; padding-left: 20px; line-height: 1.55; }}
+    .news-list li {{ margin: 6px 0; color: var(--muted); }}
+    .empty {{ color: var(--muted); padding: 16px; }}
+    .item-detail {{
+      padding: 0 10px 16px !important;
+      border-bottom: 1px solid var(--border);
+    }}
+  </style>
 </head>
-<body style="margin:0;padding:24px;background:#f6f8fb;font-family:Arial,sans-serif;color:#111827;">
-  <main style="max-width:920px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;">
-    <header style="padding:24px;border-bottom:1px solid #e5e7eb;">
-      <h1 style="margin:0 0 8px;font-size:24px;">{escape(title)}</h1>
-      <p style="margin:0;color:#4b5563;">{subtitle} Generated {escape(generated_at)}.</p>
+<body>
+  <main>
+    <header>
+      <h1>{escape(title)}</h1>
+      <p>{subtitle} Generated {escape(generated_at)}.</p>
     </header>
     {content}
   </main>
@@ -59,28 +154,30 @@ def _render_stock_report(items: list[ReportItem], threshold_percent: float) -> s
     if not rows:
         rows = (
             "<tr>"
-            "<td colspan=\"6\" style=\"padding:16px;border-top:1px solid #e5e7eb;\">"
+            "<td colspan=\"6\" class=\"empty\">"
             f"No holdings moved more than {threshold_percent:.1f}% in the latest market session."
             "</td>"
             "</tr>"
         )
 
     return f"""
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+    <section class="section">
+    <table class="report-table" role="presentation" cellspacing="0" cellpadding="0">
       <thead>
-        <tr style="background:#f9fafb;text-align:left;">
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Ticker</th>
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Move</th>
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Previous Close</th>
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Latest Close</th>
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Shares</th>
-          <th style="padding:12px;border-bottom:1px solid #e5e7eb;">Market Value</th>
+        <tr>
+          <th>Ticker</th>
+          <th>Move</th>
+          <th>Previous Close</th>
+          <th>Latest Close</th>
+          <th>Shares</th>
+          <th>Market Value</th>
         </tr>
       </thead>
       <tbody>
         {rows}
       </tbody>
     </table>
+    </section>
 """
 
 
@@ -88,79 +185,77 @@ def _render_macro_report(report: MacroReport) -> str:
     summary_html = _render_summary(report.summary)
     move_rows = "\n".join(_render_macro_move(move) for move in report.moves)
     links = "".join(
-        f'<li style="margin:4px 0;"><a href="{escape(news.url)}" style="color:#1d4ed8;">'
-        f"{escape(news.headline)}</a> <span style=\"color:#6b7280;\">({escape(news.source)})</span></li>"
+        f'<li><a href="{escape(news.url)}">'
+        f"{escape(news.headline)}</a> <span>({escape(news.source)})</span></li>"
         for news in report.news
     )
     if not links:
-        links = '<li style="margin:4px 0;color:#6b7280;">No recent market news found.</li>'
+        links = '<li>No recent market news found.</li>'
 
     return f"""
-    <section style="padding:20px 24px;border-bottom:1px solid #e5e7eb;background:#f8fafc;">
-      <div style="display:inline-block;margin:0 0 12px;padding:6px 10px;background:#eef2ff;color:#3730a3;font-weight:bold;font-size:13px;">
-        今日触发市场宏观异动监控
-      </div>
-      <h2 style="margin:0 0 10px;font-size:18px;">Macro Brief</h2>
-      <div style="line-height:1.55;color:#111827;">{summary_html}</div>
+    <section class="section">
+      <div class="badge">今日触发市场宏观异动监控</div>
+      <h2>Macro Brief</h2>
+      <div class="summary">{summary_html}</div>
     </section>
-    <section style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">
-      <h2 style="margin:0 0 12px;font-size:16px;">Moved Holdings Context</h2>
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+    <section class="section">
+      <h2>Moved Holdings Context</h2>
+      <table class="report-table" role="presentation" cellspacing="0" cellpadding="0">
         <thead>
-          <tr style="background:#f9fafb;text-align:left;">
-            <th style="padding:10px;border-bottom:1px solid #e5e7eb;">Ticker</th>
-            <th style="padding:10px;border-bottom:1px solid #e5e7eb;">Move</th>
-            <th style="padding:10px;border-bottom:1px solid #e5e7eb;">Latest Close</th>
-            <th style="padding:10px;border-bottom:1px solid #e5e7eb;">Market Value</th>
+          <tr>
+            <th>Ticker</th>
+            <th>Move</th>
+            <th>Latest Close</th>
+            <th>Market Value</th>
           </tr>
         </thead>
         <tbody>{move_rows}</tbody>
       </table>
     </section>
-    <section style="padding:20px 24px;">
-      <h2 style="margin:0 0 10px;font-size:16px;">Market News Used</h2>
-      <ul style="margin:0;padding-left:20px;">{links}</ul>
+    <section class="section">
+      <h2>Market News Used</h2>
+      <ul class="news-list">{links}</ul>
     </section>
 """
 
 
 def _render_macro_move(move: StockMove) -> str:
-    color = "#047857" if move.change_percent >= 0 else "#b91c1c"
+    color_class = "positive" if move.change_percent >= 0 else "negative"
     return f"""
           <tr>
-            <td style="padding:10px;border-top:1px solid #e5e7eb;font-weight:bold;">{escape(move.ticker)}</td>
-            <td style="padding:10px;border-top:1px solid #e5e7eb;color:{color};font-weight:bold;">{move.change_percent:+.2f}%</td>
-            <td style="padding:10px;border-top:1px solid #e5e7eb;">${move.latest_close:,.2f}</td>
-            <td style="padding:10px;border-top:1px solid #e5e7eb;">${move.market_value:,.2f}</td>
+            <td class="ticker">{escape(move.ticker)}</td>
+            <td class="{color_class}">{move.change_percent:+.2f}%</td>
+            <td>${move.latest_close:,.2f}</td>
+            <td>${move.market_value:,.2f}</td>
           </tr>
 """
 
 
 def _render_item(item: ReportItem) -> str:
     move = item.move
-    color = "#047857" if move.change_percent >= 0 else "#b91c1c"
+    color_class = "positive" if move.change_percent >= 0 else "negative"
     links = "".join(
-        f'<li style="margin:4px 0;"><a href="{escape(news.url)}" style="color:#1d4ed8;">'
-        f"{escape(news.headline)}</a> <span style=\"color:#6b7280;\">({escape(news.source)})</span></li>"
+        f'<li><a href="{escape(news.url)}">'
+        f"{escape(news.headline)}</a> <span>({escape(news.source)})</span></li>"
         for news in item.news
     )
     if not links:
-        links = '<li style="margin:4px 0;color:#6b7280;">No recent news found.</li>'
+        links = '<li>No recent news found.</li>'
 
     summary_html = _render_summary(item.summary)
     return f"""
 <tr>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;font-weight:bold;">{escape(move.ticker)}</td>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;color:{color};font-weight:bold;">{move.change_percent:+.2f}%</td>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;">${move.previous_close:,.2f}</td>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;">${move.latest_close:,.2f}</td>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;">{move.shares:g}</td>
-  <td style="padding:12px;border-top:1px solid #e5e7eb;">${move.market_value:,.2f}</td>
+  <td class="ticker">{escape(move.ticker)}</td>
+  <td class="{color_class}">{move.change_percent:+.2f}%</td>
+  <td>${move.previous_close:,.2f}</td>
+  <td>${move.latest_close:,.2f}</td>
+  <td>{move.shares:g}</td>
+  <td>${move.market_value:,.2f}</td>
 </tr>
 <tr>
-  <td colspan="6" style="padding:0 12px 18px;border-bottom:1px solid #e5e7eb;">
-    <div style="margin:8px 0 10px;line-height:1.45;">{summary_html}</div>
-    <ul style="margin:0;padding-left:20px;">{links}</ul>
+  <td colspan="6" class="item-detail">
+    <div class="summary">{summary_html}</div>
+    <ul class="news-list">{links}</ul>
   </td>
 </tr>
 """

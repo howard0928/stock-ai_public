@@ -233,6 +233,35 @@ def _apply_industrial_theme() -> None:
           line-height: 1.75;
         }
 
+        .report-dialog-note {
+          color: var(--stock-muted);
+          border: 1px solid var(--stock-border);
+          background: #050705;
+          padding: 0.7rem 0.8rem;
+          margin: 0.25rem 0 0.9rem;
+          line-height: 1.45;
+          font-size: 0.82rem;
+        }
+
+        .report-dialog-frame {
+          border: 1px solid var(--stock-border);
+          background: var(--stock-panel);
+          padding: 0.75rem;
+          margin-top: 0.75rem;
+        }
+
+        div[data-testid="stDialog"] div[role="dialog"] {
+          background: var(--stock-bg);
+          border: 1px solid var(--stock-border-strong);
+          color: var(--stock-text);
+          max-width: min(1180px, 94vw);
+        }
+
+        div[data-testid="stDialog"] h2,
+        div[data-testid="stDialog"] h3 {
+          color: var(--stock-text);
+        }
+
         .terminal-report h1,
         .terminal-report h2,
         .terminal-report h3 {
@@ -442,12 +471,17 @@ def _render_single_stock_detail(
 
 
 def _render_large_move_button(db_path: str) -> None:
-    st.markdown('<div class="section-note">复用已有 large-move report 逻辑，只把结果显示在当前页面。</div>', unsafe_allow_html=True)
-    controls, output = st.columns([1, 2])
+    st.markdown('<div class="section-note">复用已有 large-move report 逻辑；生成后会在独立弹窗里查看和下载。</div>', unsafe_allow_html=True)
+    controls, note = st.columns([1, 2])
     with controls:
         threshold = st.number_input("波动阈值 %", min_value=0.1, value=5.0, step=0.5)
         dry_run = st.checkbox("Dry run", value=False)
         clicked = st.button("Check large moves", use_container_width=True)
+    with note:
+        st.markdown(
+            '<div class="report-dialog-note">结果不会再挤在当前页面。生成后会打开一个报告弹窗，里面可以滚动阅读，也可以下载 HTML。</div>',
+            unsafe_allow_html=True,
+        )
     if not clicked:
         return
 
@@ -461,8 +495,8 @@ def _render_large_move_button(db_path: str) -> None:
     except Exception as exc:
         st.error(str(exc))
         return
-    with output:
-        st.components.v1.html(html, height=760, scrolling=True)
+    st.success("Large-move report 已生成。")
+    _show_large_move_dialog(html)
 
 
 def _render_trade_form(db_path: str) -> None:
@@ -594,11 +628,16 @@ def _render_transaction_editor(db_path: str) -> None:
 
 
 def _render_review_button(db_path: str) -> None:
-    st.markdown('<div class="section-note">生成简洁中文交易复盘，重点看近期行为、重点股票和下一步。</div>', unsafe_allow_html=True)
-    controls, report_col = st.columns([1, 2])
+    st.markdown('<div class="section-note">生成简洁中文交易复盘；结果会在独立弹窗里查看和下载。</div>', unsafe_allow_html=True)
+    controls, note = st.columns([1, 2])
     with controls:
         benchmark = st.selectbox("比较基准", ["SPY", "QQQ"])
         clicked = st.button("Generate review", use_container_width=True)
+    with note:
+        st.markdown(
+            '<div class="report-dialog-note">复盘报告会合并同日同股交易，并在弹窗中按宽屏阅读，不再压缩在右侧小区域。</div>',
+            unsafe_allow_html=True,
+        )
     if not clicked:
         return
 
@@ -609,17 +648,57 @@ def _render_review_button(db_path: str) -> None:
     metrics = load_fundamental_metrics(tickers)
     news_by_ticker = {ticker: _load_news_for_ticker(ticker) for ticker in tickers}
     trade_performance = {
-        trade["id"]: load_trade_performance(trade["ticker"], trade["trade_datetime"], benchmark)
+        trade["id"]: load_trade_performance(
+            trade["ticker"],
+            trade["trade_datetime"],
+            benchmark,
+            trade_price=float(trade["price"]),
+        )
         for trade in transactions
     }
     data_status = _build_data_status(tickers, transactions, market_snapshot, metrics, news_by_ticker, trade_performance)
     report, _ = generate_review_report(db_path, market_snapshot, metrics, news_by_ticker, trade_performance)
-    with report_col:
-        _render_data_status(data_status)
-        st.markdown('<div class="terminal-report">', unsafe_allow_html=True)
-        st.markdown(report)
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.download_button("下载 Markdown 报告", report, file_name="portfolio_review.md", use_container_width=True)
+    st.success("交易复盘已生成。")
+    _show_review_dialog(report, data_status)
+
+
+@st.dialog("Large move report", width="large")
+def _show_large_move_dialog(html: str) -> None:
+    st.markdown(
+        '<div class="report-dialog-note">大幅波动检查结果。你可以在这里阅读完整报告，或下载 HTML 文件。</div>',
+        unsafe_allow_html=True,
+    )
+    st.download_button(
+        "Download HTML report",
+        html,
+        file_name="large_move_report.html",
+        mime="text/html",
+        use_container_width=True,
+        key="download_large_move_report",
+    )
+    st.markdown('<div class="report-dialog-frame">', unsafe_allow_html=True)
+    st.components.v1.html(html, height=720, scrolling=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+@st.dialog("Trading review", width="large")
+def _show_review_dialog(report: str, data_status: dict[str, str]) -> None:
+    st.markdown(
+        '<div class="report-dialog-note">中文交易复盘。缺失数据会尽量少打扰阅读，重点放在行为、重点股票和下一步。</div>',
+        unsafe_allow_html=True,
+    )
+    st.download_button(
+        "下载 Markdown 报告",
+        report,
+        file_name="portfolio_review.md",
+        mime="text/markdown",
+        use_container_width=True,
+        key="download_review_report",
+    )
+    _render_data_status(data_status)
+    st.markdown('<div class="terminal-report">', unsafe_allow_html=True)
+    st.markdown(report)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_snapshot_form(db_path: str) -> None:
@@ -701,7 +780,7 @@ def _load_news_for_ticker(ticker: str) -> list[dict[str, Any]]:
         return []
     try:
         client = FinnhubNewsClient(settings.finnhub_api_key)
-        return [item.__dict__ for item in client.company_news(ticker, days=7, limit=5)]
+        return [item.__dict__ for item in client.relevant_company_news(ticker, days=7, limit=5)]
     except Exception:
         return []
 

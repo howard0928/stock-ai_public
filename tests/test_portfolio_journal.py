@@ -4,6 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pandas as pd
+
+from stock_ai.journal_market import _return_since, _return_since_trade_price
+from stock_ai.news import NewsItem, filter_relevant_company_news
 from stock_ai.portfolio_db import (
     SnapshotHoldingInput,
     TransactionInput,
@@ -165,7 +169,7 @@ class PortfolioJournalTests(unittest.TestCase):
         self.assertEqual(transaction["reason"], "Corrected trim")
         self.assertEqual(transaction["realized_gain_loss"], 38)
 
-    def test_missing_news_does_not_fabricate_news(self) -> None:
+    def test_missing_news_does_not_fabricate_news_or_clutter_report(self) -> None:
         create_snapshot(
             self.db_path,
             "2026-05-01",
@@ -181,8 +185,9 @@ class PortfolioJournalTests(unittest.TestCase):
             trade_performance={},
         )
 
-        self.assertIn("no reliable news found", report)
-        self.assertIn("data unavailable", report)
+        self.assertNotIn("相关新闻", report)
+        self.assertNotIn("no reliable news found", report)
+        self.assertIn("价格表现暂不可用", report)
 
     def test_review_report_is_concise_and_recent_trade_focused(self) -> None:
         create_snapshot(
@@ -232,6 +237,92 @@ class PortfolioJournalTests(unittest.TestCase):
         self.assertNotIn("现金", report)
         self.assertNotIn("revenue growth", report)
         self.assertIn("这不是财务建议，只是个人交易复盘辅助。", report)
+
+    def test_review_report_groups_same_day_same_ticker_trades(self) -> None:
+        create_snapshot(
+            self.db_path,
+            "2026-05-01",
+            "Initial",
+            "",
+            [SnapshotHoldingInput("META", 10, 500, "Initial thesis")],
+        )
+        add_transaction(
+            self.db_path,
+            TransactionInput(
+                trade_datetime="2026-06-05T10:00:00",
+                ticker="META",
+                action="buy",
+                shares=1,
+                price=590,
+                fees=0.35,
+                reason="Add after pullback",
+                confidence=3,
+                horizon="long-term",
+                risk_note="AI risk",
+            ),
+        )
+        add_transaction(
+            self.db_path,
+            TransactionInput(
+                trade_datetime="2026-06-05T15:00:00",
+                ticker="META",
+                action="buy",
+                shares=3,
+                price=600,
+                fees=0.35,
+                reason="Add after pullback",
+                confidence=3,
+                horizon="long-term",
+                risk_note="AI risk",
+            ),
+        )
+
+        report, _ = generate_review_report(
+            self.db_path,
+            market_snapshot={
+                "META": {
+                    "current_price": 610,
+                    "one_day_percent": 1.0,
+                    "five_day_percent": 2.0,
+                }
+            },
+            metrics={"META": {}},
+            news_by_ticker={"META": []},
+            trade_performance={},
+        )
+
+        self.assertIn("合并为 1 组", report)
+        self.assertIn("META，买入 4 股，均价 $597.50，手续费 $0.70", report)
+        self.assertEqual(report.count("Add after pullback"), 1)
+
+    def test_news_filter_keeps_relevant_company_news(self) -> None:
+        news = [
+            NewsItem(
+                headline="What's going on in today's session: S&P500 most active stocks",
+                source="Example",
+                summary="A broad list of active stocks.",
+                url="https://example.com/movers",
+                published_at=1,
+            ),
+            NewsItem(
+                headline="Marvell shares rise after analyst raises price target",
+                source="Example",
+                summary="Analyst sees AI data center demand.",
+                url="https://example.com/mrvl",
+                published_at=2,
+            ),
+        ]
+
+        filtered = filter_relevant_company_news("MRVL", news, limit=5)
+
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0].url, "https://example.com/mrvl")
+
+    def test_trade_performance_can_use_actual_trade_price(self) -> None:
+        data = pd.DataFrame({"Close": [110.0]})
+
+        self.assertEqual(_return_since_trade_price(data, "AAPL", True, 100.0), 10.0)
+        self.assertEqual(_return_since(data, "SPY", True, allow_single_point=True), 0.0)
 
 
 if __name__ == "__main__":

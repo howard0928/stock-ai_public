@@ -60,7 +60,12 @@ def load_fundamental_metrics(tickers: list[str]) -> dict[str, dict[str, Any]]:
     return metrics
 
 
-def load_trade_performance(ticker: str, trade_datetime: str, benchmark: str = "SPY") -> dict[str, Any]:
+def load_trade_performance(
+    ticker: str,
+    trade_datetime: str,
+    benchmark: str = "SPY",
+    trade_price: float | None = None,
+) -> dict[str, Any]:
     start = _date_part(trade_datetime)
     symbols = [ticker.strip().upper(), benchmark.strip().upper()]
     try:
@@ -81,14 +86,41 @@ def load_trade_performance(ticker: str, trade_datetime: str, benchmark: str = "S
         }
 
     return {
-        "ticker_return": _return_since(data, symbols[0], len(symbols) == 1),
+        "ticker_return": _return_since_trade_price(data, symbols[0], len(symbols) == 1, trade_price),
         "benchmark": benchmark,
-        "benchmark_return": _return_since(data, symbols[1], False),
+        "benchmark_return": _return_since(data, symbols[1], False, allow_single_point=True),
     }
 
 
-def _return_since(data: pd.DataFrame, ticker: str, single_ticker: bool) -> float | str:
+def _return_since_trade_price(
+    data: pd.DataFrame,
+    ticker: str,
+    single_ticker: bool,
+    trade_price: float | None,
+) -> float | str:
     closes = _close_series(data, ticker, single_ticker)
+    if closes.empty:
+        return "data unavailable"
+    latest = float(closes.iloc[-1])
+    if trade_price is not None and trade_price > 0:
+        change = _percent_change(latest, trade_price)
+        return change if change is not None else "data unavailable"
+    return _return_from_closes(closes)
+
+
+def _return_since(
+    data: pd.DataFrame,
+    ticker: str,
+    single_ticker: bool,
+    allow_single_point: bool = False,
+) -> float | str:
+    closes = _close_series(data, ticker, single_ticker)
+    if len(closes) == 1 and allow_single_point:
+        return 0.0
+    return _return_from_closes(closes)
+
+
+def _return_from_closes(closes: pd.Series) -> float | str:
     if len(closes) < 2:
         return "data unavailable"
     first = float(closes.iloc[0])
