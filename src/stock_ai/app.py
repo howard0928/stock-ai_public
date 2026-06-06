@@ -47,6 +47,7 @@ def _apply_industrial_theme() -> None:
           --stock-negative: #FF3B30;
           --stock-warning: #FFB800;
           --stock-neutral: #D2D9D0;
+          --stock-font: Helvetica, "Helvetica Neue", Arial, sans-serif;
         }
 
         html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
@@ -56,23 +57,31 @@ def _apply_industrial_theme() -> None:
 
         .stApp, .stMarkdown, .stText, .stCaption, label, p, h1, h2, h3, h4, h5, h6,
         [data-testid="stWidgetLabel"], [data-testid="stSidebar"] * {
-          font-family: "IBM Plex Mono", "JetBrains Mono", "Berkeley Mono", "SFMono-Regular", Consolas, monospace;
+          font-family: var(--stock-font);
           font-variant-numeric: tabular-nums;
         }
 
         h1 {
           letter-spacing: 0;
-          font-size: 1.65rem;
-          border-bottom: 1px solid var(--stock-border);
-          padding-bottom: 0.75rem;
-          margin-bottom: 0.35rem;
+          font-size: 1.75rem;
+          line-height: 1.15;
+          padding: 0.15rem 0 0.2rem;
+          margin-bottom: 0.45rem;
         }
 
         h2, h3 {
           color: var(--stock-text);
           letter-spacing: 0;
-          border-bottom: 1px solid var(--stock-border);
-          padding-bottom: 0.35rem;
+          border-bottom: 0;
+          margin: 1.55rem 0 0.75rem;
+          padding: 0.62rem 0.8rem 0.62rem 0.95rem;
+          background: linear-gradient(90deg, rgba(0, 230, 118, 0.13), rgba(16, 20, 15, 0.82) 44%, rgba(8, 10, 8, 0));
+          box-shadow: inset 4px 0 0 var(--stock-positive);
+          border-radius: 6px;
+        }
+
+        h2:first-child, h3:first-child {
+          margin-top: 0.75rem;
         }
 
         .stCaption, [data-testid="stCaptionContainer"], small {
@@ -104,8 +113,7 @@ def _apply_industrial_theme() -> None:
         }
 
         [data-testid="stSidebar"] {
-          background: var(--stock-panel);
-          border-right: 1px solid var(--stock-border);
+          display: none;
         }
 
         div[data-testid="stVerticalBlockBorderWrapper"],
@@ -184,7 +192,7 @@ def _apply_industrial_theme() -> None:
           color: var(--stock-text) !important;
           border-radius: 5px !important;
           border: 1px solid var(--stock-border-strong) !important;
-          font-family: "IBM Plex Mono", "JetBrains Mono", "Berkeley Mono", "SFMono-Regular", Consolas, monospace !important;
+          font-family: var(--stock-font) !important;
           font-variant-numeric: tabular-nums;
           box-shadow: none !important;
           transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
@@ -201,7 +209,7 @@ def _apply_industrial_theme() -> None:
           color: var(--stock-text) !important;
           border-color: var(--stock-border-strong) !important;
           border-radius: 5px !important;
-          font-family: "IBM Plex Mono", "JetBrains Mono", "Berkeley Mono", "SFMono-Regular", Consolas, monospace !important;
+          font-family: var(--stock-font) !important;
           font-variant-numeric: tabular-nums;
         }
 
@@ -265,13 +273,17 @@ def _apply_industrial_theme() -> None:
         .terminal-report h1,
         .terminal-report h2,
         .terminal-report h3 {
-          border-bottom: 1px solid var(--stock-border);
-          margin-top: 0.75rem;
+          border-bottom: 0;
+          margin-top: 1rem;
+          background: linear-gradient(90deg, rgba(0, 230, 118, 0.1), rgba(16, 20, 15, 0.7), rgba(8, 10, 8, 0));
+          box-shadow: inset 3px 0 0 var(--stock-positive);
         }
 
         div[data-baseweb="tab-list"] {
-          border-bottom: 1px solid var(--stock-border);
+          border-bottom: 0;
           gap: 0.35rem;
+          padding-bottom: 0.35rem;
+          background: linear-gradient(180deg, rgba(8, 10, 8, 0), rgba(16, 20, 15, 0.55));
         }
 
         button[data-baseweb="tab"] {
@@ -311,7 +323,7 @@ def main() -> None:
     st.title("个人投资组合日志与复盘")
     st.caption("本地持仓日志、交易记录和中文复盘。所有数据来自你的 SQLite、行情源或 API；缺失数据会明确显示。")
 
-    db_path = st.sidebar.text_input("SQLite 文件", DEFAULT_DB_PATH)
+    db_path = st.session_state.get("db_path", DEFAULT_DB_PATH)
     init_db(db_path)
 
     holdings = list_holdings(db_path)
@@ -334,6 +346,13 @@ def main() -> None:
 
     with st.expander("Initial portfolio snapshot", expanded=False):
         _render_snapshot_form(db_path)
+
+    with st.expander("Settings / Advanced", expanded=False):
+        st.markdown('<div class="section-note">通常不需要修改。只有你想切换到另一个本地 SQLite 文件时才用这里。</div>', unsafe_allow_html=True)
+        selected_db_path = st.text_input("SQLite 文件", db_path)
+        if selected_db_path != db_path:
+            st.session_state["db_path"] = selected_db_path
+            st.info("SQLite 文件路径已更新。页面会在下一次刷新后使用新的数据库。")
 
 
 def _render_overview(holdings: list[dict[str, Any]], market_snapshot: dict[str, dict[str, Any]]) -> None:

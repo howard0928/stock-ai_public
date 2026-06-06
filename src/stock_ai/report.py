@@ -59,7 +59,7 @@ def render_html_report(items: list[ReportItem], threshold_percent: float, macro_
       padding: 20px;
       background: var(--bg);
       color: var(--text);
-      font-family: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      font-family: Helvetica, "Helvetica Neue", Arial, sans-serif;
       font-variant-numeric: tabular-nums;
     }}
     main {{
@@ -70,8 +70,8 @@ def render_html_report(items: list[ReportItem], threshold_percent: float, macro_
     }}
     header {{
       padding: 22px 24px;
-      border-bottom: 1px solid var(--border);
       background: #050705;
+      box-shadow: inset 5px 0 0 var(--positive);
     }}
     h1, h2 {{
       margin: 0;
@@ -84,10 +84,12 @@ def render_html_report(items: list[ReportItem], threshold_percent: float, macro_
     a {{ color: var(--positive); text-decoration: none; }}
     a:hover {{ text-decoration: underline; }}
     .section {{
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
+      margin: 18px 18px 0;
+      padding: 18px 18px;
+      border: 1px solid rgba(51, 64, 54, 0.7);
+      background: linear-gradient(180deg, rgba(16, 20, 15, 0.94), rgba(8, 10, 8, 0.94));
     }}
-    .section:last-child {{ border-bottom: 0; }}
+    .section:last-child {{ margin-bottom: 18px; }}
     .badge {{
       display: inline-block;
       margin: 0 0 12px;
