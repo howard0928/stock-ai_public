@@ -236,13 +236,14 @@ def _apply_industrial_theme() -> None:
         .terminal-report {
           background: var(--stock-panel);
           border: 1px solid var(--stock-border);
+          color: #FFFFFF;
           padding: 1.1rem 1.25rem;
           max-width: 980px;
           line-height: 1.75;
         }
 
         .report-dialog-note {
-          color: var(--stock-muted);
+          color: var(--stock-muted) !important;
           border: 1px solid var(--stock-border);
           background: #050705;
           padding: 0.7rem 0.8rem;
@@ -267,7 +268,19 @@ def _apply_industrial_theme() -> None:
 
         div[data-testid="stDialog"] h2,
         div[data-testid="stDialog"] h3 {
-          color: var(--stock-text);
+          color: #FFFFFF !important;
+        }
+
+        div[data-testid="stDialog"] [data-testid="stMarkdownContainer"] p,
+        div[data-testid="stDialog"] [data-testid="stMarkdownContainer"] li,
+        div[data-testid="stDialog"] [data-testid="stMarkdownContainer"] strong,
+        div[data-testid="stDialog"] [data-testid="stMarkdownContainer"] em {
+          color: #FFFFFF !important;
+          opacity: 1 !important;
+        }
+
+        div[data-testid="stDialog"] [data-testid="stMarkdownContainer"] li::marker {
+          color: var(--stock-positive);
         }
 
         .terminal-report h1,
